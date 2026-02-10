@@ -17,6 +17,6 @@ spec:
     spec:
       containers:
         - name: kubernetes-node-server
-          image: viku01999/kubernetes-node-server:2.0
+          image: viku01999/kubernetes-node-server:3.0
           ports:
             - containerPort: 3000
