@@ -6,7 +6,7 @@ metadata:
   labels:
     app: kubernetes-node-server
 spec:
-  replicas: 2
+  replicas: 1      # only 1 pod for now
   selector:
     matchLabels:
       app: kubernetes-node-server
@@ -20,3 +20,10 @@ spec:
           image: viku01999/kubernetes-node-server:3.0
           ports:
             - containerPort: 3000
+          resources:
+            requests:  # Minimum resources the pod is guaranteed to get
+              cpu: "100m"       # CPU: 100m → 0.1 CPU core
+              memory: "128Mi"   # Memory: 128Mi → 128 MB
+            limits:    # Maximum resources the pod can use
+              cpu: "500m"       # CPU: 500m → 0.5 CPU cores
+              memory: "256Mi"   # Memory: 256Mi → 256 MB

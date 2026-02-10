@@ -1,90 +1,117 @@
-# 🚀 Step 1: Two Environments — Dev & Staging
+# Kubernetes Resource Sharing: Requests & Limits 🏢💻
 
-```bash
-# Create dev and staging namespaces
-kubectl create namespace dev
-kubectl create namespace staging
+Welcome to your **Resource Sharing session**!  
+Here, we’ll teach your “employees” (pods) **how much workload they can handle** so the boss (Deployment) can manage them efficiently.
 
-# Verify
-kubectl get ns
+---
 
-```
+## 📚 What You Will Learn
 
-## Bacics command for this branch
+1. **Requests** – minimum CPU/memory guaranteed for each employee 🪑  
+2. **Limits** – maximum CPU/memory an employee can handle 💪  
+3. Why these are important for **HPA** (the boss needs metrics to decide when to hire more employees)
 
-```bash
-# Dev
-kubectl apply -f dev-deployment.yaml
-kubectl apply -f dev-service.yaml
+---
 
-# Staging
-kubectl apply -f staging-deployment.yaml
-kubectl apply -f staging-service.yaml
+## 🔹 Hands-On Example
 
-# Check pods in each namespace
-kubectl get pods -n dev
-kubectl get pods -n staging
-
-# Check services in each namespace
-kubectl get svc -n dev
-kubectl get svc -n staging
-```
-
-## in this what we # COMPLETED TOPICS ✅
+Add resource limits in your Deployment YAML:
 
 ```yaml
-- kubernetes_basics:
-      description: "Node vs Pod IPs, Deployment, Service types"
-      concepts_learned:
-        - Node = physical/virtual machine IP
-        - Pod = ephemeral container with dynamic IP
-        - Deployment = manages Pods, desired state
-        - ClusterIP = internal-only Service
-        - NodePort = exposes Service on Node IP + port
-        - LoadBalancer = external VIP entry
-      hands_on:
-        - "kubectl get pods, get svc, get deployments"
-        - "kubectl apply -f deployment.yaml"
-        - "kubectl delete pod / deployment"
-        - "Observe Deployment auto-heal"
-      jokes:
-        - "Deployment = boss 🎩, Pods = employees 🕺💃, delete pod = firing temporary, Deployment rehires 😎"
-        - "NodePort = bouncer 🚪, ClusterIP = invite-only party 🏠, LoadBalancer = VIP red carpet 🌉"
-
-  - pod_lifecycle:
-      description: "Pods are ephemeral, Deployment ensures desired state"
-      hands_on:
-        - "kubectl delete pod <pod-name> → see new pod pop up"
-      joke:
-        - "Fire employees ❌ → boss hires again. Fire the boss ✅ → everyone goes home 🏠😂"
-
-  - internal_pod_communication:
-      description: "Pods talk using Service DNS, never raw Pod IPs"
-      example:
-        - "http://user-service.default.svc.cluster.local:3000/api/users"
-      rule_of_thumb: "Always use ClusterIP + selector for inter-pod communication"
-
-  - multiple_env:
-      description: "Created dev & staging namespaces"
-      hands_on:
-        - "kubectl get all -n dev / staging"
-        - "Services exposed using NodePort per namespace"
-      example_access:
-        - dev: "http://192.168.29.13:32051/api/hello"
-        - staging: "http://192.168.29.13:32052/api/hello"
-
-  - load_testing_curl:
-      description: "Check pod distribution using repeated curl"
-      command:
-        - "for i in {1..10}; do curl <NodeIP>:<NodePort>/api/hello; echo; done"
-      outcome: "Shows which pod handled request, random per request"
+spec:
+  containers:
+    - name: kubernetes-node-server
+      image: viku01999/kubernetes-node-server:3.0
+      ports:
+        - containerPort: 3000
+      resources:
+        requests:
+          cpu: "100m"
+          memory: "128Mi"
+        limits:
+          cpu: "500m"
+          memory: "256Mi"
 ```
 
-## For example to see the response form pods
+🔹 Fun Tip
+
+Think of requests as the minimum desk space each employee gets.
+
+Limits = maximum workload they can handle without burning out.
+
+Boss (Deployment) + HPA rely on these numbers to make smart hiring/firing decisions.
+
+---
+
+## (Horizontal Pod Autoscaler)
+
+```markdown
+# Kubernetes HPA: Scaling Employees Automatically 🏢📈
+
+Welcome to **Horizontal Pod Autoscaler (HPA)**!  
+Here, the **boss** decides **when to hire or lay off employees** (pods) based on workload.
+
+---
+
+## 📚 What You Will Learn
+
+1. How to **autoscale pods** based on CPU or memory usage  
+2. How HPA works with **resource requests**  
+3. Optional: scaling indirectly based on traffic  
+4. Commands to create and monitor HPA
+
+---
+
+## 🔹 Hands-On Commands
 
 ```bash
-for i in {1..10}; do
-  curl http://192.168.29.13:32051/api/hello
-  echo
-done
+# Scale automatically using HPA
+kubectl autoscale deployment kubernetes-node-server \
+  --cpu-percent=50 \
+  --min=2 \
+  --max=5 \
+  -n dev
+
+# Check HPA status
+kubectl get hpa -o wide -n dev
+```
+
+🔹 How It Works
+
+HPA = the boss observing employee workload
+
+CPU usage rises → boss hires more employees
+
+CPU usage drops → boss lets some employees go
+
+Requests/limits are essential for HPA to make decisions
+
+---
+
+## (ConfigMaps & Secrets)
+
+```markdown
+# Kubernetes Configs & Secrets: Manuals & Vaults 🏢📋🏦
+
+Welcome to **ConfigMaps & Secrets session**!  
+Here, the boss keeps **employee manuals** and **vaults** so employees can work efficiently and securely.
+
+---
+
+## 📚 What You Will Learn
+
+1. **ConfigMaps** – non-sensitive settings for employees (manuals, guidelines)  
+2. **Secrets** – sensitive data employees need access to securely (vaults)  
+3. How to **mount them in pods** without rebuilding images
+
+---
+
+## 🔹 Hands-On Commands
+
+```bash
+# Create a ConfigMap (manual)
+kubectl create configmap my-config --from-literal=ENV=dev
+
+# Create a Secret (vault)
+kubectl create secret generic my-secret --from-literal=password=1234
 ```
