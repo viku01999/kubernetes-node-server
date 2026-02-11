@@ -74,6 +74,21 @@ kubectl autoscale deployment kubernetes-node-server \
 
 # Check HPA status
 kubectl get hpa -o wide -n dev
+
+# Delete HPA (Automatically)
+kubectl delete hpa kubernetes-node-server-hpa -n dev
+
+# Delete HPA (If create the manual)
+kubectl scale deployment kubernetes-node-server --replicas=3 -n dev
+
+# Suspend HPA scaling (min = max = current replicas)
+kubectl patch hpa kubernetes-node-server-hpa -n dev \
+  -p '{"spec":{"minReplicas":3,"maxReplicas":3}}'
+
+
+# See live resource consuming by a pod
+watch -n 1 "kubernetes-node-server-8495854996-fd7s9 -n dev"
+
 ```
 
 🔹 How It Works
@@ -115,3 +130,16 @@ kubectl create configmap my-config --from-literal=ENV=dev
 # Create a Secret (vault)
 kubectl create secret generic my-secret --from-literal=password=1234
 ```
+
+## 💡 Formula HPA uses
+
+```pgsql
+Pod CPU usage (%) = (current CPU usage in millicores) / (CPU request in millicores) × 100
+```
+
+- Example:
+  - Deployment pod request: cpu: 100m (0.1 CPU core)
+  - Current pod usage: 50m (0.05 CPU core)
+  - Usage = (50 / 100) × 100 = 50%
+
+- So averageUtilization: 50 → HPA will try to scale up when average CPU usage across pods exceeds 50% of the requested CPU, not the total node CPU
