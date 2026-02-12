@@ -32,15 +32,131 @@
 
 
 # With HPA
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: kubernetes-node-server
+#   namespace: dev   # <-- important!
+#   labels:
+#     app: kubernetes-node-server
+# spec:
+#   replicas: 1      # only 1 pod for now
+#   selector:
+#     matchLabels:
+#       app: kubernetes-node-server
+#   template:
+#     metadata:
+#       labels:
+#         app: kubernetes-node-server
+#     spec:
+#       containers:
+#         - name: kubernetes-node-server
+#           image: viku01999/kubernetes-node-server:3.0
+#           ports:
+#             - containerPort: 3000
+#           resources:
+#             requests:  # Minimum resources the pod is guaranteed to get
+#               cpu: "100m"       # CPU: 100m → 0.1 CPU core
+#               memory: "128Mi"   # Memory: 128Mi → 128 MB
+#             limits:    # Maximum resources the pod can use
+#               cpu: "500m"       # CPU: 500m → 0.5 CPU cores
+#               memory: "256Mi"   # Memory: 256Mi → 256 MB
+
+
+# Config yaml
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: kubernetes-node-server
+#   namespace: dev
+#   labels:
+#     app: kubernetes-node-server
+
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: kubernetes-node-server
+
+#   template:
+#     metadata:
+#       labels:
+#         app: kubernetes-node-server
+
+#     spec:
+#       containers:
+#         - name: kubernetes-node-server
+#           image: viku01999/kubernetes-node-server:3.0
+
+#           ports:
+#             - containerPort: 4000
+
+#           resources:
+#             requests:
+#               cpu: "100m"
+#               memory: "128Mi"
+#             limits:
+#               cpu: "500m"
+#               memory: "256Mi"
+
+#           # 🔥 Inject ConfigMap as environment variables
+#           envFrom:
+#             - configMapRef:
+#                 name: node-app-config
+
+
+# secret.yaml
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: kubernetes-node-server
+#   namespace: dev
+#   labels:
+#     app: kubernetes-node-server
+
+# spec:
+#   replicas: 1
+#   selector:
+#     matchLabels:
+#       app: kubernetes-node-server
+
+#   template:
+#     metadata:
+#       labels:
+#         app: kubernetes-node-server
+
+#     spec:
+#       containers:
+#         - name: kubernetes-node-server
+#           image: viku01999/kubernetes-node-server:3.0
+
+#           ports:
+#             - containerPort: 4000
+
+#           resources:
+#             requests:
+#               cpu: "100m"
+#               memory: "128Mi"
+#             limits:
+#               cpu: "500m"
+#               memory: "256Mi"
+
+#           # 🔥 Inject ConfigMap as environment variables
+#           envFrom:
+#             - configMapRef:
+#                 name: node-app-config
+#             - secretRef:
+#                 name: node-app-secret
+
+
+# volume mount
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: kubernetes-node-server
-  namespace: dev   # <-- important!
-  labels:
-    app: kubernetes-node-server
+  namespace: dev
 spec:
-  replicas: 1      # only 1 pod for now
+  replicas: 1
   selector:
     matchLabels:
       app: kubernetes-node-server
@@ -52,12 +168,29 @@ spec:
       containers:
         - name: kubernetes-node-server
           image: viku01999/kubernetes-node-server:3.0
-          ports:
-            - containerPort: 3000
+
+          # 🔹 Resource requests & limits
           resources:
-            requests:  # Minimum resources the pod is guaranteed to get
-              cpu: "100m"       # CPU: 100m → 0.1 CPU core
-              memory: "128Mi"   # Memory: 128Mi → 128 MB
-            limits:    # Maximum resources the pod can use
-              cpu: "500m"       # CPU: 500m → 0.5 CPU cores
-              memory: "256Mi"   # Memory: 256Mi → 256 MB
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+          # 🔹 Mount ConfigMap and Secret
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+            - name: secret-volume
+              mountPath: /app/secret
+
+      # 🔹 Define volumes
+      volumes:
+        - name: config-volume
+          configMap:
+            name: node-app-config
+
+        - name: secret-volume
+          secret:
+            secretName: node-app-secret

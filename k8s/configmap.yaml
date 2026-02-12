@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-app-config
+  namespace: dev
+data:
+  ENV: "dev"
+  APP_NAME: "kubernetes-node-server"
+  LOG_LEVEL: "debug"
+  PORT: "4000"

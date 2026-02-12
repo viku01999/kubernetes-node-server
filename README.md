@@ -143,3 +143,319 @@ Pod CPU usage (%) = (current CPU usage in millicores) / (CPU request in millicor
   - Usage = (50 / 100) × 100 = 50%
 
 - So averageUtilization: 50 → HPA will try to scale up when average CPU usage across pods exceeds 50% of the requested CPU, not the total node CPU
+
+---
+
+# 🧠 1️⃣ Why Do We Need ConfigMaps & Secrets?
+
+Perfect 👌 Let’s do a complete step-by-step masterclass on:
+
+- ✅ What is ConfigMap
+- ✅ What is Secret
+- ✅ Why we use them
+- ✅ How to create using YAML
+- ✅ How to use in Deployment
+- ✅ ENV vs Volume Mount
+- ✅ Real production understanding
+
+## Imagine your Node app has
+
+```bash
+process.env.ENV
+process.env.DB_PASSWORD
+process.env.PORT
+```
+
+Without ConfigMap/Secret:
+
+- ❌ You hardcode inside Docker image
+- ❌ Every environment (dev, prod) needs new image
+- ❌ Secrets get stored in Git
+
+*That is BAD practice.*
+
+## 🎯 The Real Purpose
+
+| Type      | Used For             | Example                  |
+| --------- | -------------------- | ------------------------ |
+| ConfigMap | Non-sensitive config | ENV, APP_NAME, LOG_LEVEL |
+| Secret    | Sensitive data       | DB_PASSWORD, JWT_SECRET  |
+
+They let you:
+
+- ✔ Change configuration without rebuilding image
+- ✔ Keep secrets separate
+- ✔ Use same image in dev/prod
+- ✔ Work cleanly with HPA scaling
+
+## 🟢 2️⃣ Create ConfigMap (YAML Method – Best Practice)
+
+Create file: `configmap.yaml`
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-app-config
+  namespace: dev
+data:
+  ENV: "dev"
+  APP_NAME: "kubernetes-node-server"
+  LOG_LEVEL: "debug"
+  PORT: "3000"
+```
+
+Apply & Check::
+
+```bash
+kubectl apply -f configmap.yaml
+kubectl get configmap -n dev
+kubectl describe configmap node-app-config -n dev
+```
+
+## 🔐 3️⃣ Create Secret (YAML Method – Production Way)
+
+Create: `secret.yaml`
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: node-app-secret
+  namespace: dev
+type: Opaque
+stringData:
+  DB_PASSWORD: "mySuperSecretPassword"
+  JWT_SECRET: "myJwtSecretKey"
+```
+
+Apply & Check::
+
+```bash
+kubectl apply -f secret.yaml
+kubectl get secret -n dev
+kubectl describe secret node-app-secret -n dev
+```
+
+## 🚀 4️⃣ Use Them in Your Deployment (Environment Variables Method)
+
+Now modify your deployment YAML.
+
+Add this inside container section:
+
+```bash
+envFrom:
+  - configMapRef:
+      name: node-app-config
+  - secretRef:
+      name: node-app-secret
+```
+
+## 🔵 Final Updated Deployment YAML
+
+```bash
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-node-server
+  namespace: dev
+  labels:
+    app: kubernetes-node-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubernetes-node-server
+  template:
+    metadata:
+      labels:
+        app: kubernetes-node-server
+    spec:
+      containers:
+        - name: kubernetes-node-server
+          image: viku01999/kubernetes-node-server:3.0
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+          # 👇 Inject config + secrets
+          envFrom:
+            - configMapRef:
+                name: node-app-config
+            - secretRef:
+                name: node-app-secret
+```
+
+Apply & Check::
+
+```bash
+# apply
+kubectl apply -f dev-deployment.yaml
+
+# Get pod name:
+kubectl get pods -n dev
+
+# Print env
+kubectl exec -it <pod-name> -n dev -- printenv
+
+# You should see: 🔍 What Happens Internally?
+
+ENV=dev
+APP_NAME=kubernetes-node-server
+LOG_LEVEL=debug
+PORT=3000
+DB_PASSWORD=mySuperSecretPassword
+JWT_SECRET=myJwtSecretKey
+
+```
+
+## 🟣 6️⃣ ENV vs Volume Mount (Very Important Concept)
+
+There are 2 ways to use ConfigMap/Secret.
+
+### ✅ Method 1: As Environment Variables (Most Common)
+
+Pros:
+
+- Easy
+- Works great for Node/Java apps
+- Simple
+
+Used with:
+
+```yaml
+envFrom:
+```
+
+### ✅ Method 2: As Files (Volume Mount)
+
+Used when:
+
+- App expects config files
+- SSL certificates
+- JSON config
+- Nginx config
+- Database config files
+
+## Example: Mount as Files
+
+Add this inside container:
+
+```yaml
+volumeMounts:
+  - name: config-volume
+    mountPath: /app/config
+  - name: secret-volume
+    mountPath: /app/secret
+```
+
+**Add this under spec: (same level as containers):**
+
+```yaml
+volumes:
+  - name: config-volume
+    configMap:
+      name: node-app-config
+
+  - name: secret-volume
+    secret:
+      secretName: node-app-secret
+```
+
+## Final updated deployemnt.yaml
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubernetes-node-server
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubernetes-node-server
+  template:
+    metadata:
+      labels:
+        app: kubernetes-node-server
+    spec:
+      containers:
+        - name: kubernetes-node-server
+          image: viku01999/kubernetes-node-server:3.0
+
+          # 🔹 Resource requests & limits
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+          # 🔹 Mount ConfigMap and Secret
+          volumeMounts:
+            - name: config-volume
+              mountPath: /app/configmap
+            - name: secret-volume
+              mountPath: /app/secret
+
+      # 🔹 Define volumes
+      volumes:
+        - name: config-volume
+          configMap:
+            name: node-app-config
+
+        - name: secret-volume
+          secret:
+            secretName: node-app-secret
+```
+
+**Now inside container:**
+
+```bash
+/app/config/ENV
+/app/config/LOG_LEVEL
+/app/secret/DB_PASSWORD
+/app/secret/JWT_SECRET
+```
+
+Note:- Each key becomes a file.
+
+## 🧠 7️⃣ When To Use What?
+
+| Use Case         | Use ENV | Use Volume |
+| ---------------- | ------- | ---------- |
+| Simple variables | ✅       | ❌          |
+| Certificates     | ❌       | ✅          |
+| JSON config file | ❌       | ✅          |
+| DB password      | ✅       | ✅          |
+
+## 🔥 8️⃣ Very Important Production Knowledge
+
+**⚠ Secrets Are NOT Fully Secure**
+
+They are:
+
+- Base64 encoded (NOT encrypted by default)
+
+For real production use:
+
+- AWS Secrets Manager
+- External Secrets Operator
+- HashiCorp Vault
+
+📦 Complete Structure
+
+```bash
+k8s/
+├── deployment.yaml
+├── configmap.yaml
+└── secret.yaml
+```
